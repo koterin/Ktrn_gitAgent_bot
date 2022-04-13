@@ -1,4 +1,4 @@
-# GIT agent
+# Ktrn Telegram Bot
 Nice tool to check the info about one particular GitHub Repo - just what our team needed for another project
 
 ## What it does
