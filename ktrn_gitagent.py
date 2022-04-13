@@ -2,9 +2,6 @@
 
 # Copyright <koterin> 2022
 
-# curl -i -H "Authorization: token
-# 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" https://api.github.com/user/repos
-
 import logging
 import requests
 
@@ -27,8 +24,8 @@ from telegram.ext import (
     CallbackContext,
 )
 
-TOKEN = '5203607992:AAFsailOGPmQUGdzL01eaJ2BvOcoVkHfUhk'
-GITAPI_TOKEN = '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'
+TOKEN = 'INSERT_YOUR_TOKEN'
+GITAPI_TOKEN = 'INSERT_YOUR_TOKEN'
 BASE_URL = 'https://api.github.com'
 OWNER = 'drunkbatya'
 REPO = 'purpledb'
