@@ -1,6 +1,6 @@
-# Copyright <koterin> 2022
-
 #!/usr/local/bin/python3
+
+# Copyright <koterin> 2022
 
 # curl -i -H "Authorization: token
 # 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" https://api.github.com/user/repos
@@ -11,14 +11,19 @@ import requests
 from telegram import (
     ReplyKeyboardMarkup,
     ReplyKeyboardRemove,
+    InlineKeyboardMarkup,
+    InlineKeyboardButton,
+    KeyboardButton,
     Update,
     ParseMode,
 )
+
 from telegram.ext import (
     Updater,
     CommandHandler,
     MessageHandler,
     Filters,
+    CallbackQueryHandler,
     CallbackContext,
 )
 
@@ -38,13 +43,20 @@ logger = logging.getLogger(__name__)
 def start(update: Update, context: CallbackContext) -> None:
     user = update.effective_user
     logger.info("User %s pressed start", user.username)
-
-    reply_keyboard = [['Repo Info', 'Last 5 commits',
-                       'ur mama', 'Top contributors', '/stop']]
+    reply_keyboard = [
+        [
+            KeyboardButton("Repo Info", callback_data='1'),
+            KeyboardButton("Last 5 commits", callback_data='2'),
+        ],
+        [   KeyboardButton("Top contributors", callback_data='3'),
+            KeyboardButton("ur mama", callback_data='4'),
+            KeyboardButton("/stop", callback_data='5'),
+        ],
+    ]
     update.message.reply_text(
         fr'Yippee-ki-yay, {user.first_name}!',
         reply_markup=ReplyKeyboardMarkup(
-            reply_keyboard, resize_keyboard=True,
+            reply_keyboard, resize_keyboard=False,
             input_field_placeholder='What would you like to see?'
         ),
     )
@@ -84,11 +96,22 @@ def get_repo_branches(urlRepo) -> str:
     return repoBranches
 
 
+def get_repo_branches_indict(urlRepo) -> str:
+    urlBr = urlRepo + '/branches'
+    headers = {'Authorization': 'token ' + GITAPI_TOKEN}
+    branches = requests.get(urlBr, headers=headers)
+    repoBranches = []
+    for dictBr in branches.json():
+        repoBranches.append(dictBr["name"])
+    return repoBranches
+
+
 def repo_info(update: Update, context: CallbackContext) -> None:
     user = update.effective_user
     logger.info("User %s asked for repo_info", user.username)
 
     update.message.reply_text('Loading...')
+
     urlRepo = '{}/repos/{}/{}'.format(BASE_URL, OWNER, REPO)
     urlContr = urlRepo + '/collaborators'
     headers = {'Authorization': 'token ' + GITAPI_TOKEN}
@@ -107,36 +130,86 @@ def repo_info(update: Update, context: CallbackContext) -> None:
 
     strout = repoName + repoDesc + repoLang
     strout += repoContr + repoBranches
-    #  context.bot.edit_message_text(chat_id=update.message.chat_id,
-    #                              message_id=update.message.reply_to_message.message_id,
-    #                              text="edited")
-    update.message.reply_text(strout,
-                              parse_mode=ParseMode.MARKDOWN,
-                              disable_web_page_preview=True)
+
+    context.bot.edit_message_text(chat_id=update.message.chat_id,
+                             message_id=update.message.message_id + 1,
+                             text=strout,
+                             parse_mode=ParseMode.MARKDOWN,
+                             disable_web_page_preview=True)
 
 
-def last_5_commits(update: Update, contect: CallbackContext) -> None:
+def last_5_commits(update: Update, context: CallbackContext) -> None:
     user = update.effective_user
     logger.info("User %s asked for last 5 commits", user.username)
+    
+    urlRepo = '{}/repos/{}/{}'.format(BASE_URL, OWNER, REPO) 
+    branches = get_repo_branches_indict(urlRepo)
+    
+    reply_keyboard = [[]]
+    count = 0
+    for x in branches:
+        reply_keyboard.append([InlineKeyboardButton(x, callback_data = str(x))])
+        count += 1
 
-    update.message.reply_text('there would be last 5 commits')
+    update.message.reply_text(
+        fr'Choose the branch:',
+        reply_markup=InlineKeyboardMarkup(
+            reply_keyboard,
+        ),
+    )
+
+def test2(update: Update, context: CallbackContext) -> None:
+    update = Updater(TOKEN)
+    query = update.callback_query
+    query.answer()
+    
+    urlRepo = '{}/repos/{}/{}'.format(BASE_URL, OWNER, REPO) 
+    update.message.reply_text('Loading...')
+    
+    if CallbackContext == "develop":
+        commit_text = last_5_commits_for_branch(urlRepo, str(query.data))
+        
+    context.bot.edit_message_text(chat_id=update.message.chat_id,
+                             message_id=update.message.message_id + 2,
+                             text=commit_text,
+                             parse_mode=ParseMode.MARKDOWN,
+                             disable_web_page_preview=True)
 
 
-def ur_mama(update: Update, contect: CallbackContext) -> None:
+def last_5_commits_for_branch(urlRepo, branch) -> str:
+    urlCom = urlRepo + '/commits' + '?per_page=' \
+                + str(PAGE_LIST) + '&sha=' + branch
+    headers = {'Authorization': 'token ' + GITAPI_TOKEN}
+    r = requests.get(urlCom, headers=headers)
+    count = 0
+    strout = ''
+    for dictComm in r.json():
+        if count == 5:
+            break
+        nameAuth = dictCommit = dictComm["commit"]["author"]["name"]
+        commitDate = dictCommit = dictComm["commit"]["author"]["date"]
+        commitMessage = dictCommit = dictComm["commit"]["message"]
+        strout += f"{commitDate}\n" + f"       *{nameAuth}*: {commitMessage}\n"
+        count += 1
+    print(strout)
+    return strout
+
+
+def ur_mama(update: Update, context: CallbackContext) -> None:
     user = update.effective_user
     logger.info("User %s asked for ur mama", user.username)
 
     update.message.reply_text('there would be ur mama')
 
 
-def top_contr(update: Update, contect: CallbackContext) -> None:
+def top_contr(update: Update, context: CallbackContext) -> None:
     user = update.effective_user
     logger.info("User %s asked for top contributors", user.username)
 
     update.message.reply_text('there would be top contr')
 
 
-def stop_command(update: Update, contect: CallbackContext) -> None:
+def stop_command(update: Update, context: CallbackContext) -> None:
     user = update.effective_user
     logger.info("User %s stopped the bot", user.username)
 
@@ -155,6 +228,7 @@ def main() -> None:
         Filters.text('Repo Info'), repo_info))
     dispatcher.add_handler(MessageHandler(
         Filters.text('Last 5 commits'), last_5_commits))
+    dispatcher.add_handler(CallbackQueryHandler(test2))
     dispatcher.add_handler(MessageHandler(
         Filters.text('ur mama'), ur_mama))
     dispatcher.add_handler(MessageHandler(
